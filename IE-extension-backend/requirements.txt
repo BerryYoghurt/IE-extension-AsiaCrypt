@@ -1,0 +1,8 @@
+openssl
+cryptography
+numpy
+scipy
+openai-clip
+pillow
+jpeglib
+requests-toolbelt
