@@ -1,5 +1,4 @@
 from image_encryption.jpeg import encrypt
-from image_encryption.crypto import gen_one_time_key
 import string
 import secrets
 import argparse
