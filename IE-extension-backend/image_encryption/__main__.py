@@ -11,22 +11,8 @@ if __name__ == "__main__":
         prog="image_encryption",
         description="JPEG-tolerant image encryption")
     parser.add_argument("filename")
-    parser.add_argument("-p", "--password", help="Password. If not given, a new password is generated.")
     parser.add_argument("-o", "--output", help="Output filename.", default="ctxt.jpeg")
     args = parser.parse_args()
-
-    if args.password == None:
-        alphabet = string.ascii_letters + string.digits
-        password = None
-        while True:
-            password = ''.join(secrets.choice(alphabet) for i in range(10))
-            if (any(c.islower() for c in password)
-                    and any(c.isupper() for c in password)
-                    and sum(c.isdigit() for c in password) >= 3):
-                break
-        print("The new password is: {password}")
-    else:
-        password = args.password
 
     image = Image.open(args.filename)
     # w16, h16 = math.ceil(image.size[0] / 16) * 16, math.ceil(image.size[1] / 16) * 16
