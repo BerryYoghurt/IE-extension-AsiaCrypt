@@ -319,7 +319,6 @@ consume_data (j_decompress_ptr cinfo)
 METHODDEF(int)
 decompress_data (j_decompress_ptr cinfo, JSAMPIMAGE output_buf)
 {
-    fprintf(stderr, "Decompress_start");
   my_coef_ptr coef = (my_coef_ptr) cinfo->coef;
   JDIMENSION last_iMCU_row = cinfo->total_iMCU_rows - 1;
   JDIMENSION block_num;
@@ -340,7 +339,6 @@ decompress_data (j_decompress_ptr cinfo, JSAMPIMAGE output_buf)
   }
 
   /* OK, output from the virtual arrays. */
-    //fprintf(stderr, "%d", cinfo->num_components);
   for (ci = 0, compptr = cinfo->comp_info; ci < cinfo->num_components;
        ci++, compptr++) {
     /* Don't bother to IDCT an uninteresting component. */

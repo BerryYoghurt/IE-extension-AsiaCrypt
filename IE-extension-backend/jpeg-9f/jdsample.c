@@ -238,7 +238,6 @@ h2v1_upsample (j_decompress_ptr cinfo, jpeg_component_info * compptr,
       *outptr++ = invalue;
     }
   }
-    printf("h2v1/n");
 }
 
 
@@ -267,10 +266,9 @@ h2v2_upsample (j_decompress_ptr cinfo, jpeg_component_info * compptr,
       *outptr++ = invalue;
       *outptr++ = invalue;
     }
-      jcopy_sample_rows(output_data, output_data + 1,
+    jcopy_sample_rows(output_data, output_data + 1,
 		      1, cinfo->output_width);
   }
-    printf("h2v2/n");
 }
 
 
