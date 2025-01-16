@@ -13,7 +13,7 @@ im_1, im_2: two images
 def clip_feature(im):
     im_preprocess = preprocess(im).unsqueeze(0).to(device)
     im_features = model.encode_image( im_preprocess )
-    ret = im_features[0].cpu()
+    ret = im_features[0].cpu().to(torch.float16)
     # print(ret)
     #print(len(im_features[0]))
     return ret
