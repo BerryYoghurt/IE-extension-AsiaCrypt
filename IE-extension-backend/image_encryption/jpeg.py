@@ -210,7 +210,6 @@ def recv(mask,filt):
         local_ctxt_wtag = read_result()
         print("No jpeg-9f")
     else:
-        shutil.copy('./ctxt.jpeg','./jpeg-9f/ctxt.jpeg')
         os.system('./jpeg-9f/djpeg -bmp -nosmooth -outfile post420.bmp ctxt.jpeg')
         local_ctxt_wtag = old_read_result()
         print("Using jpeg-9f")
