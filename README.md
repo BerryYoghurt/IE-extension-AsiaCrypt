@@ -14,9 +14,10 @@ To use the decryption environment, upload an encrypted image to a website. Then,
 
 ## If you are on a UNIX-like system, you will get a slightly higher quality if you do the following:
 1. Go to IE-extension-backend/jpeg-9f.
-2. Run `configure`.
-3. Run `make`.
+2. Check install.txt to see how to install it for your system. Note that we apply a small modification on the original jpeg-9f library, so we need this local compilation step.
 
-## If you are on Windows or face trouble successfully compiling jpeg-9f:
+Generally, on Mac, you will need to rename some files and run `make`. On Linux, you will need to first run `./configure` and **then** run `make`.
+
+## If you are on Windows or otherwise face trouble successfully compiling jpeg-9f:
 The code has an all-Python alternative. Just delete the directory `IE-extension-backend/jpeg-9f`.
 
