@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image
 
 import time
-import os, sys
+import os, sys, shutil, platform
 import copy as cp
 from statistics import mean
 import math
@@ -119,20 +119,29 @@ def mask_hash_clip(feature,mask,vec):
 
 def send(pt,mac_key,feature,q, output_filename):
     randomness_im = os.urandom(16)
-    randomness_mac = b''.join([int.to_bytes(255 ^ x) for x in randomness_im])
+    # print("Randomness in encrypt", randomness_im)
+    randomness_mac = b''.join([int.to_bytes(255 ^ x, length=1, byteorder="big", signed=False) for x in randomness_im])
     im_one_time_key = gen_short_one_time_key(randomness_im)
+    # print(im_one_time_key[:5])
     mac_one_time_key = gen_short_one_time_key(randomness_mac)
 
     im_mod_add_key = gen_long_one_time_key(pt.shape, im_one_time_key)
     ctxt = sub_samp_image(encrypt_mod(pt,im_mod_add_key),"420")
 
     # Encode the features as bytes
+    # Now they are 1024 bytes of features and 32 bytes for the MAC = 1056 bytes
+    # 8448 bits
+    # I will treat it as  16 strings, each of size 528 bits
+    # Threfore:
+
     # MAC the features
-    mac = gen_hmac(mac_key, feature)
-    # Append the mac to the features
     feature = feature.tobytes()
+    mac = gen_hmac(mac_key, feature)
+    # print(feature)
+    # Append the mac to the features
+    
     auth = feature + mac
-    auth = np.array([int.from_bytes(auth[i:i+1]) for i in range(len(auth))], dtype='uint8').reshape((16, 66))
+    auth = np.array([int.from_bytes(auth[i:i+1], byteorder="big", signed=False) for i in range(len(auth))], dtype='uint8').reshape((16, 66))
     mac_mod_add_key = gen_long_one_time_key(auth.shape, mac_one_time_key)
     # print("MAC KEY: ", mac_mod_add_key)
     # print("Randomness mac: ", randomness_mac)
@@ -148,11 +157,20 @@ def send(pt,mac_key,feature,q, output_filename):
     
     # Now they are 16 bytes of randomness
     # 128 bits --> (8, 6, 3)
-    # randomness_size = 16, randomness_size3 = 18
+    # Previously, we had mac_size be the size of one MAC, 256 bits
+    # we had 16 macs in total
+    # And mac_size3 = 258 bits
+    # I will treat the randomness as 8 random strings, each of size 16 bits
+    # Threfore:
+    random_strings = 8
+    randomness_size = 16
+    randomness_size3 = 18
     randomness = randomness_im 
     # print("Randomness: ", randomness)
-    randomness_bit = np.array(bytes_to_bstr2d([randomness[i:i+2] for i in range(0, len(randomness), 2)], 18)) * 255
-    randomness_bit = randomness_bit.reshape(8, 6, 3)
+    # Rewrite randomness bytearray as 8 random strings, each of size 16 bits
+    randomness = [randomness[i:i+2] for i in range(0, len(randomness), 2)]
+    randomness_bit = np.array(bytes_to_bstr2d(randomness, randomness_size3)) * 255
+    randomness_bit = randomness_bit.reshape(random_strings, randomness_size3//3, 3)
     # print("Randomness bit: ", randomness_bit)
     randomness_bit_22 = np.repeat(np.repeat(randomness_bit, repeats=2, axis=1), repeats=2, axis=0).astype('uint8')
 
@@ -187,25 +205,29 @@ def encrypt(quality_factor, input_filename, output_filename, mac_key):
     return expt_encrypt(pt,quality_factor, output_filename, mac_key)
 
 
-def recv(filt):
-    # For UNIX-LIKE systems, uncommment the next two lines. 
-    # os.system('./mydjpeg -bmp -nosmooth -outfile post420.bmp ctxt.jpeg')
-    # local_ctxt_wtag = old_read_result()
-    # For UNIX-LIKE systems, comment out the next line!
-    local_ctxt_wtag = read_result()
+def recv(mask,filt):
+    if platform.system() == 'Windows' or not os.path.exists('./jpeg-9f'):
+        local_ctxt_wtag = read_result()
+        print("No jpeg-9f")
+    else:
+        shutil.copy('./ctxt.jpeg','./jpeg-9f/ctxt.jpeg')
+        os.system('./jpeg-9f/djpeg -bmp -nosmooth -outfile post420.bmp ctxt.jpeg')
+        local_ctxt_wtag = old_read_result()
+        print("Using jpeg-9f")
     local_ctxt,local_macs_bstr, randomness_bstr = separate_img(local_ctxt_wtag,32,352)
     r = b''.join(bstr_to_bytes2d(randomness_bstr.reshape(8, 18)[:,2:]))
     # print("Randomness: ", r)
     randomness_im = r
-    randomness_mac = b''.join([int.to_bytes(255 ^ x) for x in r])
+    randomness_mac = b''.join([int.to_bytes(255 ^ x, length=1, byteorder="big", signed=False) for x in r])
 
     im_one_time_key = gen_short_one_time_key(randomness_im)
+    # print(im_one_time_key[:5])
     mac_one_time_key = gen_short_one_time_key(randomness_mac)
     
     mac_key = b'\x19V\xcc\xe3\xc8\xd6\xa2h\x82\x97\xc7\x9e\x83\x04\x15s\xfd\x06"<7\xa0US\xf1\xe9\xbf\xe1\x9eM\xbe\x94'
     
     received_features_macs = bstr_to_bytes2d(local_macs_bstr.reshape(16,528)[:,:])
-    received_features_macs = np.array([[int.from_bytes(m[i:i+1]) for i in range(len(m))] for m in received_features_macs], dtype='uint8').reshape((16, 66))
+    received_features_macs = np.array([[int.from_bytes(m[i:i+1], byteorder="big", signed=False) for i in range(len(m))] for m in received_features_macs], dtype='uint8').reshape((16, 66))
     mac_mod_add_key = gen_long_one_time_key(received_features_macs.shape, mac_one_time_key)
     # mac_one_time_key same
     # print("MAC KEY: ", mac_mod_add_key)
@@ -231,6 +253,7 @@ def recv(filt):
     received_features = np.frombuffer(received_features, dtype='float16')
     received_features = cp.copy(received_features)
     received_features = torch.from_numpy(received_features)
+    # print(received_features)
     sim = cos_sim(local_feature, received_features)
     print(ret, sim)
     ret = ret and sim > 0.9
@@ -239,7 +262,9 @@ def recv(filt):
 
 
 def decrypt(filt):
-    ret, cleaned_pt = recv(filt)
+    # Long term key
+    mask = gen_mask(mask_bit,N)
+    ret, cleaned_pt = recv(mask,filt)
     return ret, Image.fromarray(cleaned_pt)
 
 

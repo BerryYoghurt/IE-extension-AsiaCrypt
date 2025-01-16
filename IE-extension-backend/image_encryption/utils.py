@@ -114,7 +114,7 @@ def bytes_to_bstr2d(arr, size):
 
 """read result from 'result.txt' that is written by djpeg"""
 def old_read_result():
-    f= open('result.txt','r')
+    f= open('./result.txt','r')
     lines = f.readlines()
     v,w = math.ceil(int(lines[0])/16.0)*16, math.ceil(int(lines[1])/16.0)*16
     pt = np.zeros((v,w,3))

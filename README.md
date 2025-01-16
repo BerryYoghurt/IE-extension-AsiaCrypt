@@ -1,5 +1,10 @@
 # IE-extension
 
+## `pip` requirements
+1. Install `IE-extension-backend/requirements.txt`
+2. Our protocol uses a computer-vision model, CLIP, which needs to be installed depeding on the OS you are running on. You will need to install `pytorch` and CLIP. See https://github.com/openai/CLIP?tab=readme-ov-file#usage.
+
+## Usage
 To encrypt an image, run `python3 -m image_encryption -o <output_filename> <input_filename>` in the parent directory of `image_encryption` package.
 
 To set up the decryption environment, get the server running by `python3 encryption_server.py`. The server needs to be up and running for the decryption to work.
@@ -7,12 +12,11 @@ Then, import the extension (IE-encryption-frontend) to Chrome. For more instruct
 
 To use the decryption environment, upload an encrypted image to a website. Then, open the image (so that it has the same original size), right click on it, then choose "Decrypt this image".
 
-## If you are on a Unix-like system, you will get a slightly higher quality if you do the following:
-First go to jpeg-9f and start 'make'. For information on compiling jpeg-9f, see install.txt.
+## If you are on a UNIX-like system, you will get a slightly higher quality if you do the following:
+1. Go to IE-extension-backend/jpeg-9f.
+2. Run `configure`.
+3. Run `make`.
 
-After compiling, move 'djpeg' to IE-encryption-backend and rename it as 'mydjpeg'.
-Then, go to IE-encryption-backend/image_encryption/jpeg.py, search for "UNIX-LIKE". You need to uncomment two lines and comment out one line. Sorry for the inconvinience!
-
-## If you are on Windows:
-Compiling jpeg-9f is painful, so it is better to use the all-Python code.
+## If you are on Windows or face trouble successfully compiling jpeg-9f:
+The code has an all-Python alternative. Just delete the directory `IE-extension-backend/jpeg-9f`.
 

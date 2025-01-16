@@ -1,8 +1,6 @@
-openssl
-cryptography
-numpy
-scipy
-openai-clip
-pillow
-jpeglib
-requests-toolbelt
+cryptography==44.0.0
+numpy==2.2.1
+scipy==1.15.1
+pillow==11.1.0
+jpeglib==1.0.1
+requests-toolbelt==1.0.0

@@ -78,7 +78,8 @@ def decrypt_mod(ctxt,key):
 
 
 def gen_long_one_time_key(size, key):    
-    algorithm = algorithms.AES128(key)
+    # algorithm = algorithms.AES128(key) 
+    algorithm = algorithms.AES(key)
     cipher = Cipher(algorithm, mode=modes.CTR(b'\x00'*16))
     encryptor = cipher.encryptor()
     num_bytes = 1
@@ -94,7 +95,8 @@ def gen_short_one_time_key(randomness, long_term_key=None):
     if long_term_key == None:
         long_term_key = b'\x10l\xe1~\x0f\xda\x08(\xac<\xf9IH(Rn'
     
-    algorithm = algorithms.AES128(long_term_key)
+    # algorithm = algorithms.AES128(long_term_key)
+    algorithm = algorithms.AES(long_term_key)
     cipher = Cipher(algorithm, mode=modes.ECB())
     encryptor = cipher.encryptor()
     ct = encryptor.update(randomness)
