@@ -31,8 +31,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             # Process the image
             with open('ctxt.jpeg', 'wb') as f:
                 f.write(BytesIO(image).read())
-            # ret, image = decrypt(password, True)
-            ret, image = decrypt(True)
+            ret, image = decrypt(password, True)
 
             output_buffer = BytesIO()
             image.save(output_buffer, format='JPEG', quality=90)
@@ -49,7 +48,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(output_buffer.read())
             else:
                 # Authentication failed
-                self.send_response(400)
+                self.send_response(406)
                 self.end_headers()
                 self.wfile.write(b'Authentication Failed')
                 # pass

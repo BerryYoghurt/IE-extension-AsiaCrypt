@@ -5,7 +5,7 @@
 2. Our protocol uses a computer-vision model, CLIP, which needs to be installed depeding on the OS you are running on. You will need to install `pytorch` and CLIP. See https://github.com/openai/CLIP?tab=readme-ov-file#usage.
 
 ## Usage
-To encrypt an image, run `python3 -m image_encryption -o <output_filename> <input_filename>` in the parent directory of `image_encryption` package.
+To encrypt an image, run `python3 -m image_encryption -o <output_filename> -p <password> <input_filename>` in the parent directory of `image_encryption` package.
 
 To set up the decryption environment, get the server running by `python3 encryption_server.py` **inside IE-extension-backend**. The server needs to be up and running for the decryption to work.
 Then, import the extension (IE-encryption-frontend) to Chrome. For more instructions on how to import an extension, see https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked.

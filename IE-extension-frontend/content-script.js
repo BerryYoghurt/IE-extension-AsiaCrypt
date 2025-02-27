@@ -21,10 +21,11 @@ document.addEventListener("contextmenu", (event) => {
 
 // downloads the image from the SNS and sends it to the background script
 let downloadImage = function(url, sendResponse){
-    // const password = prompt("Enter password for this image:")
-    const password = 'not used for now'
-    const myRequest = new Request(url);
-    return fetch(myRequest)
+    const password = prompt("Enter password for this image:")
+    
+    return fetch(url,{
+        credentials: 'include'
+    })
     .then((response) => response.blob())
     .then((blob) => blob.arrayBuffer())
     .then((arrayBuffer) => {

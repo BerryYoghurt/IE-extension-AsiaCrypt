@@ -181,14 +181,17 @@ def read_result(filename='ctxt.jpeg'):
     cb.write_dct('Cb_'+filename)
     cr.write_dct('Cr_'+filename)
     # print('analyzed image')
-    # Take only 1/4 of the luminance
-    y = read_spatial(f'Y_{filename}', dither_mode=0).spatial[::2,::2]
+    y = read_spatial(f'Y_{filename}', dither_mode=0).spatial
     cb = read_spatial(f'Cb_{filename}', dither_mode=0).spatial
     cr = read_spatial(f'Cr_{filename}', dither_mode=0).spatial
-    y = np.repeat(np.repeat(y, repeats=2, axis=1), repeats=2, axis=0)
-      
-    cb = np.repeat(np.repeat(cb, repeats=2, axis=1), repeats=2, axis=0)
-    cr = np.repeat(np.repeat(cr, repeats=2, axis=1), repeats=2, axis=0)
+    if y.shape[0] > cb.shape[0]:
+        # If subsampling happened
+        # Take only 1/4 of the luminance
+        y = y[::2,::2]
+        y = np.repeat(np.repeat(y, repeats=2, axis=1), repeats=2, axis=0)
+        cb = np.repeat(np.repeat(cb, repeats=2, axis=1), repeats=2, axis=0)
+        cr = np.repeat(np.repeat(cr, repeats=2, axis=1), repeats=2, axis=0)
+    # Otherwise keep things as they are
 
     pt = np.stack((y, cb, cr), axis=-1)
 

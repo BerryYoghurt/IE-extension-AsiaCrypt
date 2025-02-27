@@ -3,13 +3,9 @@ import numpy as np
 from PIL import Image
 
 import time
-import os, sys, shutil, platform
+import os, sys, platform
 import copy as cp
-from statistics import mean
 import math
-import random
-import matplotlib.pyplot as plt
-from itertools import chain
 from image_encryption.utils import  *
 from image_encryption.clip_helper import *
 from image_encryption.crypto import *
@@ -117,13 +113,13 @@ def mask_hash_clip(feature,mask,vec):
     
 
 
-def send(pt,mac_key,feature,q, output_filename):
+def send(pt, key, mac_key,feature,q, output_filename):
     randomness_im = os.urandom(16)
     # print("Randomness in encrypt", randomness_im)
     randomness_mac = b''.join([int.to_bytes(255 ^ x, length=1, byteorder="big", signed=False) for x in randomness_im])
-    im_one_time_key = gen_short_one_time_key(randomness_im)
+    im_one_time_key = gen_short_one_time_key(randomness_im, key)
     # print(im_one_time_key[:5])
-    mac_one_time_key = gen_short_one_time_key(randomness_mac)
+    mac_one_time_key = gen_short_one_time_key(randomness_mac, key)
 
     im_mod_add_key = gen_long_one_time_key(pt.shape, im_one_time_key)
     ctxt = sub_samp_image(encrypt_mod(pt,im_mod_add_key),"420")
@@ -188,24 +184,24 @@ api: facebook api used for uploading and downloading
 q:   quality factor
 filt: flag to turn on/off filter. Default to True
 """
-def expt_encrypt(pt,q, output_filename, mac_key):
+def expt_encrypt(pt,q, output_filename, key, mac_key):
 
     im = Image.fromarray(pt)
     t1 = time.perf_counter()
     orig_feature = clip_feature(im).cpu().detach().numpy()
     t2 = time.perf_counter()
     
-    send(pt,mac_key,orig_feature,q, output_filename)
+    send(pt, key, mac_key,orig_feature,q, output_filename)
     return t2 - t1
    
 
-def encrypt(quality_factor, input_filename, output_filename, mac_key):
+def encrypt(quality_factor, input_filename, output_filename, key, mac_key):
     im = Image.open(input_filename)
     pt = pre_process(im)
-    return expt_encrypt(pt,quality_factor, output_filename, mac_key)
+    return expt_encrypt(pt,quality_factor, output_filename, key, mac_key)
 
 
-def recv(mask,filt):
+def recv(password,filt):
     if platform.system() == 'Windows' or not os.path.exists('./jpeg-9f'):
         local_ctxt_wtag = read_result()
         print("No jpeg-9f")
@@ -219,11 +215,12 @@ def recv(mask,filt):
     randomness_im = r
     randomness_mac = b''.join([int.to_bytes(255 ^ x, length=1, byteorder="big", signed=False) for x in r])
 
-    im_one_time_key = gen_short_one_time_key(randomness_im)
+    key, mac_key = gen_keys(password)
+    im_one_time_key = gen_short_one_time_key(randomness_im, key)
     # print(im_one_time_key[:5])
-    mac_one_time_key = gen_short_one_time_key(randomness_mac)
+    mac_one_time_key = gen_short_one_time_key(randomness_mac, key)
     
-    mac_key = b'\x19V\xcc\xe3\xc8\xd6\xa2h\x82\x97\xc7\x9e\x83\x04\x15s\xfd\x06"<7\xa0US\xf1\xe9\xbf\xe1\x9eM\xbe\x94'
+    # mac_key = b'\x19V\xcc\xe3\xc8\xd6\xa2h\x82\x97\xc7\x9e\x83\x04\x15s\xfd\x06"<7\xa0US\xf1\xe9\xbf\xe1\x9eM\xbe\x94'
     
     received_features_macs = bstr_to_bytes2d(local_macs_bstr.reshape(16,528)[:,:])
     received_features_macs = np.array([[int.from_bytes(m[i:i+1], byteorder="big", signed=False) for i in range(len(m))] for m in received_features_macs], dtype='uint8').reshape((16, 66))
@@ -260,24 +257,19 @@ def recv(mask,filt):
 
 
 
-def decrypt(filt):
-    # Long term key
-    mask = gen_mask(mask_bit,N)
-    ret, cleaned_pt = recv(mask,filt)
+def decrypt(password, filt):
+    ret, cleaned_pt = recv(password,filt)
     return ret, Image.fromarray(cleaned_pt)
 
 
-def gen_keys(im_height, im_width, password):
-    if im_height % 16 != 0 or im_width % 16 != 0:
-        raise ValueError("Dimensions need to be multiples of 16")
-    
+def gen_keys(password):
     ckdf = ConcatKDFHash(
         algorithm=hashes.SHA256(),
-        length=32 + im_height * im_width * 3,
+        length = 48,
         otherinfo=None
     )
     derived_key = ckdf.derive(str.encode(password))
 
     mac_key = derived_key[:32]
-    key = np.reshape(np.frombuffer(derived_key[32:], dtype='uint8'), (im_width, im_height, 3))
+    key = derived_key[32:]
     return key, mac_key
