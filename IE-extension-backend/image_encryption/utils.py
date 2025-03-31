@@ -5,7 +5,14 @@ import math
 import copy as cp
 from jpeglib import read_dct, from_dct, read_spatial
 
+def expand(p,num):
+    # expand array p into num x num larger.
+    return np.repeat(np.repeat(p, repeats=num, axis=1), repeats=num, axis=0)
 
+    
+def subsamp(p,num):
+    return p[:,0::num][0::num,:]
+    
 def append_img(ctxt,tags,randomness):
     coldiff = ctxt.shape[1] - randomness.shape[1]
     padding = np.zeros((randomness.shape[0],coldiff,randomness.shape[2]))
@@ -19,16 +26,7 @@ def append_img(ctxt,tags,randomness):
     return tagged_ctxt.astype('uint8')
     
 
-def separate_img(tag_ctxt, length,size):
-    randomness = tag_ctxt[:16,:12]
-    randomness = randomness[::2,::2,:]
-    r = 1*(randomness > 128)
-    tag_ctxt = tag_ctxt[16:]
-    raw_tags22 = tag_ctxt[:length,:size]
-    raw_tags = raw_tags22[0::2,0::2,:]
-    tags = 1*(raw_tags > 128)
-    ctxt = tag_ctxt[length:]
-    return ctxt,tags, r
+
 
 def sign(x):
     return np.where(x > 0, 1, 0)
@@ -113,7 +111,7 @@ def bytes_to_bstr2d(arr, size):
 
 
 """read result from 'result.txt' that is written by djpeg"""
-def old_read_result():
+def djpeg_read_result():
     f= open('./result.txt','r')
     lines = f.readlines()
     v,w = math.ceil(int(lines[0])/16.0)*16, math.ceil(int(lines[1])/16.0)*16

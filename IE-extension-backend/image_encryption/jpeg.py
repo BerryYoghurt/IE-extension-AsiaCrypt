@@ -6,10 +6,14 @@ import time
 import os, sys, platform
 import copy as cp
 import math
+
 from image_encryption.utils import  *
 from image_encryption.clip_helper import *
 from image_encryption.crypto import *
 
+#from utils import  *
+#from clip_helper import *
+#from crypto import *
 np.set_printoptions(threshold=sys.maxsize)
 
 """Parameters"""
@@ -33,17 +37,24 @@ ctxt_fn = "ctxt.jpeg"
 local_fn = "local.jpeg"
 fb_ctxt_fn = "fb_ctxt.jpeg"
 fb_pt_fn = "fb.jpeg"
-original_fn = "color.jpeg"
+original_fn = "bear.jpg"
+
 num_runs = 1
 N = 256
 mask_bit = 14
 num_mask = 64
 mask_bar = 16
 #  need to send at least 8 macs, because MCU read is 16 line per read
-# macs_sent = 8
-macs_sent = 16
-mac_size = 256
-mac_size3 = math.ceil(mac_size/3)*3
+
+"""MAC"""
+auth_height = 32
+auth_width3 = 8448 // auth_height
+auth_expansion = 4
+"""randomness"""
+rd_expansion = 4
+rd_height = 8
+rd_width = 16
+rd_width3 = 18
 #h.update(b"helloooooo")
 #sig = h.finalize()
 # 32 byte
@@ -111,7 +122,18 @@ def mask_hash_clip(feature,mask,vec):
     msk_hash = mask & hash
     return msk_hash
     
-
+def separate_img(tag_ctxt):
+    rd_ct_height, rd_ct_width = rd_height* rd_expansion, rd_width3//3 * rd_expansion
+    auth_ct_height, auth_ct_width = auth_height* auth_expansion, auth_width3//3 * auth_expansion
+    randomness = tag_ctxt[:rd_ct_height,:rd_ct_width]
+    randomness = subsamp(randomness,rd_expansion)
+    r = 1*(randomness > 128)
+    tag_ctxt = tag_ctxt[rd_ct_height:]
+    raw_tags22 = tag_ctxt[:auth_ct_height,:auth_ct_width]
+    raw_tags = subsamp(raw_tags22,auth_expansion)
+    tags = 1*(raw_tags > 128)
+    ctxt = tag_ctxt[auth_ct_height:]
+    return ctxt,tags, r
 
 def send(pt, key, mac_key,feature,q, output_filename):
     randomness_im = os.urandom(16)
@@ -137,19 +159,19 @@ def send(pt, key, mac_key,feature,q, output_filename):
     # Append the mac to the features
     
     auth = feature + mac
-    auth = np.array([int.from_bytes(auth[i:i+1], byteorder="big", signed=False) for i in range(len(auth))], dtype='uint8').reshape((16, 66))
+    auth = np.array([int.from_bytes(auth[i:i+1], byteorder="big", signed=False) for i in range(len(auth))], dtype='uint8').reshape((auth_height, 1056//auth_height))
     mac_mod_add_key = gen_long_one_time_key(auth.shape, mac_one_time_key)
     # print("MAC KEY: ", mac_mod_add_key)
     # print("Randomness mac: ", randomness_mac)
     auth = auth ^ mac_mod_add_key
 
     # 1024 + 32 bytes = 1056 --> (16, 528, 3), 
-    auth_size3 = 528
 
-    macs_bit = np.array(bytes_to_bstr2d(auth,auth_size3))*255
 
-    macs_bit = macs_bit.reshape(16, auth_size3//3,3)
-    macs_bit_22 = np.repeat(np.repeat(macs_bit,repeats=2,axis=1),repeats=2,axis = 0).astype('uint8')
+    macs_bit = np.array(bytes_to_bstr2d(auth,auth_width3))*255
+
+    macs_bit = macs_bit.reshape(auth_height, auth_width3//3,3)
+    macs_bit_ex = expand(macs_bit,auth_expansion).astype('uint8')
     
     # Now they are 16 bytes of randomness
     # 128 bits --> (8, 6, 3)
@@ -158,19 +180,16 @@ def send(pt, key, mac_key,feature,q, output_filename):
     # And mac_size3 = 258 bits
     # I will treat the randomness as 8 random strings, each of size 16 bits
     # Threfore:
-    random_strings = 8
-    randomness_size = 16
-    randomness_size3 = 18
     randomness = randomness_im 
     # print("Randomness: ", randomness)
     # Rewrite randomness bytearray as 8 random strings, each of size 16 bits
     randomness = [randomness[i:i+2] for i in range(0, len(randomness), 2)]
-    randomness_bit = np.array(bytes_to_bstr2d(randomness, randomness_size3)) * 255
-    randomness_bit = randomness_bit.reshape(random_strings, randomness_size3//3, 3)
+    randomness_bit = np.array(bytes_to_bstr2d(randomness, rd_width3)) * 255
+    randomness_bit = randomness_bit.reshape(rd_height, rd_width3//3, 3)
     # print("Randomness bit: ", randomness_bit)
-    randomness_bit_22 = np.repeat(np.repeat(randomness_bit, repeats=2, axis=1), repeats=2, axis=0).astype('uint8')
+    randomness_bit_ex = expand(randomness_bit, rd_expansion).astype('uint8')
 
-    ctxt_append = append_img(ctxt, macs_bit_22, randomness_bit_22)
+    ctxt_append = append_img(ctxt, macs_bit_ex, randomness_bit_ex)
     # print(macs_bit_22.shape)
     ctxtim = Image.fromarray(ctxt_append)
     
@@ -207,10 +226,12 @@ def recv(password,filt):
         print("No jpeg-9f")
     else:
         os.system('./jpeg-9f/djpeg -bmp -nosmooth -outfile post420.bmp ctxt.jpeg')
-        local_ctxt_wtag = old_read_result()
+        local_ctxt_wtag = djpeg_read_result()
         print("Using jpeg-9f")
-    local_ctxt,local_macs_bstr, randomness_bstr = separate_img(local_ctxt_wtag,32,352)
-    r = b''.join(bstr_to_bytes2d(randomness_bstr.reshape(8, 18)[:,2:]))
+    local_ctxt,local_macs_bstr, randomness_bstr = separate_img(local_ctxt_wtag)
+
+    
+    r = b''.join(bstr_to_bytes2d(randomness_bstr.reshape(rd_height, rd_width3)[:,2:]))
     # print("Randomness: ", r)
     randomness_im = r
     randomness_mac = b''.join([int.to_bytes(255 ^ x, length=1, byteorder="big", signed=False) for x in r])
@@ -273,3 +294,8 @@ def gen_keys(password):
     mac_key = derived_key[:32]
     key = derived_key[32:]
     return key, mac_key
+
+#key, mac_key = gen_keys('hhh')
+#encrypt(70, original_fn, 'ctxt.jpeg', key, mac_key)
+#ret, image = decrypt('hhh', True)
+#image.save("decrypted.jpeg", quality=90)
