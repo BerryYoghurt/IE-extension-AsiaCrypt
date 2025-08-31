@@ -19,13 +19,38 @@ document.addEventListener("contextmenu", (event) => {
 }, true);
 
 
+
+// If the website requires authentication, put it.
+async function fetchWithCookieRetry(url, options = {}) {
+  // First attempt without including credentials (cookies)
+  const firstResponse = await fetch(url, {
+    ...options
+  });
+
+  // If response is 200, return the response
+  if (firstResponse.status === 200) {
+    return firstResponse;
+  }
+
+  // If unauthorized (401), retry with credentials (cookies) included
+  if (firstResponse.status != 200) {
+    const retryResponse = await fetch(url, {
+      ...options,
+      credentials: 'include' // Include cookies for the retry
+    });
+
+    // Return the retried response (could be 200 or still 401)
+    return retryResponse;
+  }
+}
+
+
+
 // downloads the image from the SNS and sends it to the background script
 let downloadImage = function(url, sendResponse){
     const password = prompt("Enter password for this image:")
     
-    return fetch(url,{
-        credentials: 'include'
-    })
+    return fetchWithCookieRetry(url)
     .then((response) => response.blob())
     .then((blob) => blob.arrayBuffer())
     .then((arrayBuffer) => {

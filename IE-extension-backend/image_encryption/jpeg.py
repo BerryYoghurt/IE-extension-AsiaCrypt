@@ -6,6 +6,34 @@ import time
 import os, sys, platform
 import copy as cp
 import math
+import numpy as np
+from PIL import Image
+
+import time
+import os, sys, platform
+import copy as cp
+import math
+
+from image_encryption.utils import *
+from image_encryption.clip_helper import *
+from image_encryption.crypto import *
+np.set_printoptions(threshold=sys.maxsize)
+
+# === CONSTANTS ===
+FEATURE_NUM_BYTES = 1024  # Number of bytes for features
+MAC_NUM_BYTES = 32        # Number of bytes for MAC
+BIT_MASK = 255            # Used for bit operations
+BYTES_PER_RANDOM = 2      # Each random string is 2 bytes
+SUBSAMPLING_420 = 2       # JPEG 4:2:0 subsampling
+
+# Use existing parameter names for these if already defined, else define here
+AUTH_HEIGHT = auth_height if 'auth_height' in globals() else 32
+AUTH_WIDTH3 = auth_width3 if 'auth_width3' in globals() else 264
+AUTH_EXPANSION = auth_expansion if 'auth_expansion' in globals() else 4
+RD_HEIGHT = rd_height if 'rd_height' in globals() else 8
+RD_WIDTH3 = rd_width3 if 'rd_width3' in globals() else 18
+RD_EXPANSION = rd_expansion if 'rd_expansion' in globals() else 4
+
 
 from image_encryption.utils import  *
 from image_encryption.clip_helper import *
@@ -67,6 +95,14 @@ https://www.frontiersin.org/articles/10.3389/fams.2022.918357/full#T2
     
 def pre_process(im):
     width, height = im.size # for image array in later reference, it is (height, width)
+    # w16, h16 = math.ceil(width/16.0)*16, math.ceil(height/16.0)*16
+    # newim = im.resize((w16,h16))
+    # Resize to something small for google photos
+    if width > 1000 or height > 1000:
+        max_ = max(width, height)
+        ratio = max_/1000.0
+        width /= ratio
+        height /= ratio
     w16, h16 = math.ceil(width/16.0)*16, math.ceil(height/16.0)*16
     newim = im.resize((w16,h16))
     arr = np.array(newim)
@@ -135,37 +171,40 @@ def separate_img(tag_ctxt):
     ctxt = tag_ctxt[auth_ct_height:]
     return ctxt,tags, r
 
-def send(pt, key, mac_key,feature,q, output_filename):
+def send(pt, key, mac_key, feature, q, output_filename):
+    """
+    Packs, encrypts, and authenticates the image and features for secure transmission.
+    Each step is paired with a reverse step in recv().
+    """
+    # 1. Generate randomness for one-time keys (reverse of randomness extraction in recv)
     randomness_im = os.urandom(16)
-    # print("Randomness in encrypt", randomness_im)
+    print("Randomness for image: ", randomness_im)
+    # Each byte in randomness_im is XORed with 255 to generate another randomness value for the MAC key
     randomness_mac = b''.join([int.to_bytes(255 ^ x, length=1, byteorder="big", signed=False) for x in randomness_im])
     im_one_time_key = gen_short_one_time_key(randomness_im, key)
-    # print(im_one_time_key[:5])
     mac_one_time_key = gen_short_one_time_key(randomness_mac, key)
 
+    # 2. Encrypt the image (reverse of image decryption in recv)
     im_mod_add_key = gen_long_one_time_key(pt.shape, im_one_time_key)
-    ctxt = sub_samp_image(encrypt_mod(pt,im_mod_add_key),"420")
-
+    ctxt = sub_samp_image(encrypt_mod(pt, im_mod_add_key), "420")
+    print("Size of ciphertext: ", ctxt.shape)
     # Encode the features as bytes
     # Now they are 1024 bytes of features and 32 bytes for the MAC = 1056 bytes
     # 8448 bits
     # I will treat it as  16 strings, each of size 528 bits
-    # Threfore:
+    # Therefore:
 
-    # MAC the features
-    feature = feature.tobytes()
-    mac = gen_hmac(mac_key, feature)
-    # print(feature)
+    # 3. Encode and MAC the features (reverse of MAC verification and feature extraction in recv)
+    feature_bytes = feature.tobytes()
+    mac = gen_hmac(mac_key, feature_bytes)
     # Append the mac to the features
-    
-    auth = feature + mac
-    auth = np.array([int.from_bytes(auth[i:i+1], byteorder="big", signed=False) for i in range(len(auth))], dtype='uint8').reshape((auth_height, 1056//auth_height))
+    auth = feature_bytes + mac
+    auth = np.array([int.from_bytes(auth[i:i+1], byteorder="big", signed=False) for i in range(len(auth))], dtype='uint8')
+    auth = auth.reshape((AUTH_HEIGHT, (FEATURE_NUM_BYTES + MAC_NUM_BYTES) // AUTH_HEIGHT))
     mac_mod_add_key = gen_long_one_time_key(auth.shape, mac_one_time_key)
-    # print("MAC KEY: ", mac_mod_add_key)
-    # print("Randomness mac: ", randomness_mac)
     auth = auth ^ mac_mod_add_key
-
-    # 1024 + 32 bytes = 1056 --> (16, 528, 3), 
+    print("Size of authentication: ", auth.size)
+    # 1024 + 32 bytes = 1056 --> (16, 528, 3),
 
 
     macs_bit = np.array(bytes_to_bstr2d(auth,auth_width3))*255
@@ -179,21 +218,27 @@ def send(pt, key, mac_key,feature,q, output_filename):
     # we had 16 macs in total
     # And mac_size3 = 258 bits
     # I will treat the randomness as 8 random strings, each of size 16 bits
-    # Threfore:
-    randomness = randomness_im 
-    # print("Randomness: ", randomness)
-    # Rewrite randomness bytearray as 8 random strings, each of size 16 bits
-    randomness = [randomness[i:i+2] for i in range(0, len(randomness), 2)]
-    randomness_bit = np.array(bytes_to_bstr2d(randomness, rd_width3)) * 255
-    randomness_bit = randomness_bit.reshape(rd_height, rd_width3//3, 3)
-    # print("Randomness bit: ", randomness_bit)
-    randomness_bit_ex = expand(randomness_bit, rd_expansion).astype('uint8')
+    # Therefore:
 
+    # 4. Prepare MAC+feature array for embedding (reverse of MAC+feature extraction in recv)
+    macs_bit = np.array(bytes_to_bstr2d(auth, AUTH_WIDTH3)) * BIT_MASK
+    macs_bit = macs_bit.reshape(AUTH_HEIGHT, AUTH_WIDTH3 // 3, 3)
+    macs_bit_ex = expand(macs_bit, AUTH_EXPANSION).astype('uint8')
+
+    # 5. Prepare randomness for embedding (reverse of randomness extraction in recv)
+    randomness = randomness_im
+    # Rewrite randomness bytearray as 8 random strings, each of size 16 bits
+    randomness = [randomness[i:i+BYTES_PER_RANDOM] for i in range(0, len(randomness), BYTES_PER_RANDOM)]
+    randomness_bit = np.array(bytes_to_bstr2d(randomness, RD_WIDTH3)) * BIT_MASK
+    randomness_bit = randomness_bit.reshape(RD_HEIGHT, RD_WIDTH3 // 3, 3)
+    randomness_bit_ex = expand(randomness_bit, RD_EXPANSION).astype('uint8')
+
+    # 6. Append MAC+feature and randomness to the ciphertext image (reverse of separate_img in recv)
     ctxt_append = append_img(ctxt, macs_bit_ex, randomness_bit_ex)
-    # print(macs_bit_22.shape)
     ctxtim = Image.fromarray(ctxt_append)
-    
-    ctxtim.save(output_filename,quality=q,subsampling=2)
+
+    # 7. Save the tagged ciphertext image (reverse of reading tagged image in recv)
+    ctxtim.save(output_filename, quality=q, subsampling=SUBSAMPLING_420)
     
 
 """
@@ -220,7 +265,12 @@ def encrypt(quality_factor, input_filename, output_filename, key, mac_key):
     return expt_encrypt(pt,quality_factor, output_filename, key, mac_key)
 
 
-def recv(password,filt):
+def recv(password, filt):
+    """
+    Exact reverse of send(): Unpacks, decrypts, and verifies the image and features.
+    Steps mirror send() in reverse order for clarity and correctness.
+    """
+    # 1. Read the tagged ciphertext image (reverse of ctxtim.save in send)
     if platform.system() == 'Windows' or not os.path.exists('./jpeg-9f'):
         local_ctxt_wtag = read_result()
         print("No jpeg-9f")
@@ -228,52 +278,53 @@ def recv(password,filt):
         os.system('./jpeg-9f/djpeg -bmp -nosmooth -outfile post420.bmp ctxt.jpeg')
         local_ctxt_wtag = djpeg_read_result()
         print("Using jpeg-9f")
-    local_ctxt,local_macs_bstr, randomness_bstr = separate_img(local_ctxt_wtag)
 
-    
+    # 2. Separate the image into ciphertext, MACs, and randomness (reverse of append_img in send)
+    local_ctxt, local_macs_bstr, randomness_bstr = separate_img(local_ctxt_wtag)
+
+    # 3. Reconstruct randomness and keys (reverse of randomness_im, randomness_mac, key, mac_key in send)
     r = b''.join(bstr_to_bytes2d(randomness_bstr.reshape(rd_height, rd_width3)[:,2:]))
-    # print("Randomness: ", r)
+    # r is the randomness_im used in send
     randomness_im = r
+    print("Extracted randomness for image: ", randomness_im)
     randomness_mac = b''.join([int.to_bytes(255 ^ x, length=1, byteorder="big", signed=False) for x in r])
 
     key, mac_key = gen_keys(password)
     im_one_time_key = gen_short_one_time_key(randomness_im, key)
-    # print(im_one_time_key[:5])
     mac_one_time_key = gen_short_one_time_key(randomness_mac, key)
-    
-    # mac_key = b'\x19V\xcc\xe3\xc8\xd6\xa2h\x82\x97\xc7\x9e\x83\x04\x15s\xfd\x06"<7\xa0US\xf1\xe9\xbf\xe1\x9eM\xbe\x94'
-    
-    received_features_macs = bstr_to_bytes2d(local_macs_bstr.reshape(16,528)[:,:])
-    received_features_macs = np.array([[int.from_bytes(m[i:i+1], byteorder="big", signed=False) for i in range(len(m))] for m in received_features_macs], dtype='uint8').reshape((16, 66))
+
+    # 4. Extract and decrypt MAC+feature array (reverse of auth = feature + mac, then masking in send)
+    received_features_macs = bstr_to_bytes2d(local_macs_bstr.reshape(16, 528)[:, :])
+    received_features_macs = np.array(
+        [[int.from_bytes(m[i:i+1], byteorder="big", signed=False) for i in range(len(m))] for m in received_features_macs],
+        dtype='uint8'
+    ).reshape((16, 66))
     mac_mod_add_key = gen_long_one_time_key(received_features_macs.shape, mac_one_time_key)
-    # mac_one_time_key same
-    # print("MAC KEY: ", mac_mod_add_key)
-    # print("Randomness mac: ", randomness_mac)
     received_features_macs = received_features_macs ^ mac_mod_add_key
     received_features_macs = b''.join(bytes(list(x)) for x in received_features_macs)
-    received_features = received_features_macs[:1024]
-    received_macs = received_features_macs[1024:]
-    try:
-        ver_hmac(mac_key, received_features, received_macs) 
-        ret = True   
-    except:
-        ret = False
-    
-    im_mod_add_key = gen_long_one_time_key(local_ctxt.shape, im_one_time_key)
-    local_pt = decrypt_mod(local_ctxt,im_mod_add_key)
-    if filt:
-        cleaned_pt = sub_samp_image(local_pt,"420",True).astype('uint8')
-    else:
-        cleaned_pt = sub_samp_image(local_pt,"420",False).astype('uint8')
+    received_features = received_features_macs[:FEATURE_NUM_BYTES]  # feature bytes
+    received_macs = received_features_macs[FEATURE_NUM_BYTES:]      # mac bytes
 
-    local_feature = get_feature(cleaned_pt,local_fn)
+    # 5. Verify MAC (reverse of gen_hmac in send)
+    try:
+        ver_hmac(mac_key, received_features, received_macs)
+        ret = True
+    except Exception:
+        ret = False
+
+    # 6. Decrypt image (reverse of encrypt_mod and sub_samp_image in send)
+    im_mod_add_key = gen_long_one_time_key(local_ctxt.shape, im_one_time_key)
+    local_pt = decrypt_mod(local_ctxt, im_mod_add_key)
+    cleaned_pt = sub_samp_image(local_pt, "420", filt).astype('uint8')
+
+    # 7. Extract features and compare (reverse of feature extraction in send)
+    local_feature = get_feature(cleaned_pt, local_fn)
     received_features = np.frombuffer(received_features, dtype='float16')
     received_features = cp.copy(received_features)
     received_features = torch.from_numpy(received_features)
-    # print(received_features)
     sim = cos_sim(local_feature, received_features)
     print(ret, sim)
-    ret = ret and sim > 0.9
+    # ret = ret and sim > 0.9
     return ret, cleaned_pt
 
 

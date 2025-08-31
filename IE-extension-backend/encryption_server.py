@@ -58,7 +58,7 @@ class MyHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'Malformed request')
         except BaseException as e:
-            print(e.with_traceback())
+            print(e)
             exit(-1)
 
 with socketserver.TCPServer(("", PORT), MyHandler) as httpd:
