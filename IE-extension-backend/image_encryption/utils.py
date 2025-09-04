@@ -83,30 +83,112 @@ def sub_samp_image(pt,ratio="",med_filt=False):
     return pt
 
 
-def bstr_to_bytes(s):
-    return int(s, 2).to_bytes((len(s) + 7) // 8, byteorder='big')
+"""Functions to encode parts of the message that we want to send losslessly"""
+def bytearray_to_bit_array(byte_array):
+  assert type(byte_array) == bytes
+  """Converts a bytearray to a numpy array of bits, keeping leading zeros."""
+  # Convert bytearray to a list of integers
+  int_list = list(byte_array)
+  # Convert each integer to its binary representation (as a string)
+  binary_strings = [bin(x)[2:].zfill(8) for x in int_list]
+  # Join the binary strings and convert to a list of integers (0 or 1)
+  # bit_list = [int(bit) for binary_string in binary_strings for bit in binary_string]
+  bit_list = [int(bit) for binary_string in binary_strings for bit in binary_string]
+  # Convert the list of integers to a numpy array
+  return np.array(bit_list)
 
-def bytes_to_bstr(b):
-    return bin(int.from_bytes(b,byteorder='big'))[2:]
-    
-    # turn a 2d list of 0/1 to a list of bytes
-def bstr_to_bytes2d(arr):
-    results = []
-    for row in arr:
-        bstr =''.join(str(x) for x in row)
-        bytes = bstr_to_bytes(bstr)
-        results.append(bytes)
-    return results
-    
-    # turn a list of bytes to 2d list of 0/1. If number of bits is less than size, it will add leading 0
-def bytes_to_bstr2d(arr, size):
-    results = []
-    for byte in arr:
-        b_lst = list(bytes_to_bstr(byte).zfill(size))
-        blst_int = [int(x) for x in b_lst]
-        #print(len(blst_int))
-        results.append(blst_int)
-    return results
+
+def bit_array_to_bytearray(bit_array):
+    """
+    Converts a 1D numpy array of bits (0 or 1) back into a bytearray.
+
+    Args:
+        bit_array: A 1D numpy array of bits (0 or 1).
+
+    Returns:
+        A bytearray containing the original byte data.
+
+    Raises:
+        ValueError: If the number of bits is not a multiple of 8.
+    """
+    num_bits = bit_array.size
+
+    if num_bits % 8 != 0:
+        raise ValueError("The number of bits must be a multiple of 8 to convert to bytes without padding.")
+
+    # Reshape the bit array into groups of 8 bits (bytes)
+    byte_bits = bit_array.reshape(-1, 8)
+
+    # Convert each 8-bit group into an integer (byte value)
+    byte_values = []
+    for byte in byte_bits:
+        # Convert the array of 8 bits (e.g., [1, 0, 1, 0, 1, 0, 1, 0]) to a binary string ('10101010')
+        binary_string = ''.join(map(str, byte))
+        # Convert the binary string to an integer
+        byte_value = int(binary_string, 2)
+        byte_values.append(byte_value)
+
+    # Convert the list of byte values into a bytearray
+    return bytearray(byte_values)
+
+
+def reshape_bit_array_to_3d(bit_array, height):
+  """
+  Reshapes a 1D numpy array of bits into a 3D array of shape (height, , 3).
+  Filled color-first.
+
+  Args:
+    bit_array: A 1D numpy array of bits (0 or 1).
+
+  Returns:
+    A 3D numpy array of shape (total_bits // (height * 3), height, 3). If the total number of bits
+    is not divisible by 3 or width, it is padded with trailing zeros.
+  """
+  total_bits = bit_array.size
+  print(f"Total bits = {total_bits}")
+  divisor = 3 * height
+  rem = total_bits % divisor
+  if rem != 0:
+    padding = np.zeros(divisor - rem, dtype=np.int8)
+    bit_array = np.concatenate([bit_array, padding])
+    total_bits += divisor - rem
+
+  # The total number of pixels is the total number of bits divided by 3 (for RGB)
+  num_pixels = total_bits // 3
+
+  width = num_pixels // height
+
+  # Reshape the 1D array into a 3D array (H, W, 3)
+  # The order='C' (default) or 'F' (Fortran) will determine how the array is read.
+  # 'C' order fills row by row, then color channels within each row.
+  # 'F' order fills column by column, then color channels within each column.
+  # To fill color-first as requested, we need to arrange the 1D array
+  # such that the first 3 elements are the R, G, B for the first pixel,
+  # the next 3 for the second pixel, and so on.
+  # Reshaping with shape (-1, 3) will group the bits into sets of 3 (pixels).
+  # Then reshaping this into (H, W, 3) will arrange these pixels into the HxW grid.
+  print(f"(H,W) = {(height, width)}")
+  reshaped_3d = bit_array.reshape(-1, 3).reshape((height, width, 3))
+
+  return reshaped_3d
+
+def flatten_bit_array(bit_array, original_size):
+    return bit_array.reshape(-1, 3).flatten()[:original_size]
+
+
+def duplicate_pixel_array(pixel_array, num_duplicates):
+    return np.repeat(np.repeat(pixel_array, num_duplicates, axis=0), num_duplicates, axis=1)
+
+def deduplicate_pixel_array(pixel_array, num_duplicates):
+    return pixel_array[num_duplicates//2::num_duplicates, num_duplicates//2::num_duplicates]
+
+def bit_array_to_pixel_array(bit_array):
+    return bit_array * 255
+
+def pixel_array_to_bit_array(pixel_array):
+    return (pixel_array > 128).astype(np.uint8)
+
+
 
 
 

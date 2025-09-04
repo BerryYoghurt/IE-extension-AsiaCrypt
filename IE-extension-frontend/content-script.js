@@ -76,6 +76,10 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         const blob = new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' });
         console.log("Blob received in content-script: ", blob);
         const objectURL = URL.createObjectURL(blob);
+        targetImg.onload = function() {
+          targetImg.width = targetImg.naturalWidth
+          targetImg.height = targetImg.naturalHeight; // Image dimensions from metadata
+        }
         targetImg.src = objectURL;
         targetImg.srcset = objectURL;
     }
