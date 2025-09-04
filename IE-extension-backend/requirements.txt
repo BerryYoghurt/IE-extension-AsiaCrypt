@@ -4,3 +4,5 @@ scipy==1.15.1
 pillow==11.1.0
 jpeglib==1.0.1
 requests-toolbelt==1.0.0
+setuptools==80.9.0
+openai-clip==1.0.1
