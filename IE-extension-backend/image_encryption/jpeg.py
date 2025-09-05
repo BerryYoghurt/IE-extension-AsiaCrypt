@@ -266,6 +266,8 @@ def recv(password, filt):
         local_ctxt_wtag = read_result()
         print("No jpeg-9f")
     else:
+        im = Image.open("ctxt.jpeg")
+        im.save("ctxt.jpeg", quality=95, subsampling=SUBSAMPLING_420)
         os.system('./jpeg-9f/djpeg -bmp -nosmooth -outfile post420.bmp ctxt.jpeg')
         local_ctxt_wtag = djpeg_read_result()
         print("Using jpeg-9f")
