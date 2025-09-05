@@ -189,7 +189,6 @@ def send(pt, key, mac_key, feature, q, output_filename):
     """
     # 1. Generate randomness for one-time keys (reverse of randomness extraction in recv)
     randomness_im = os.urandom(16)
-    print("Randomness for image: ", randomness_im)
     # Each byte in randomness_im is XORed with 255 to generate another randomness value for the MAC key
     randomness_mac = b''.join([int.to_bytes(255 ^ x, length=1, byteorder="big", signed=False) for x in randomness_im])
     im_one_time_key = gen_short_one_time_key(randomness_im, key)
@@ -198,10 +197,6 @@ def send(pt, key, mac_key, feature, q, output_filename):
     # 2. Encrypt the image (reverse of image decryption in recv)
     im_mod_add_key = gen_long_one_time_key(pt.shape, im_one_time_key)
     ctxt = sub_samp_image(encrypt_mod(pt, im_mod_add_key), "420")
-    # print("Size of ciphertext: ", ctxt.shape)
-    # Encode the features as bytes
-    # I will treat it as  16 strings, each of size 528 bits
-    # Therefore:
 
     # 3. Encode and MAC the features
     feature_bytes = feature.tobytes()
@@ -210,20 +205,15 @@ def send(pt, key, mac_key, feature, q, output_filename):
     auth = feature_bytes + mac
     # We need to convert auth to a numpy array of uints
     auth = np.array([int.from_bytes(auth[i:i+1], byteorder="big", signed=False) for i in range(len(auth))], dtype='uint8')
-    # auth = auth.reshape((AUTH_HEIGHT, (FEATURE_NUM_BYTES + MAC_NUM_BYTES) // AUTH_HEIGHT))
-    print(f"Shape of auth before encryption {auth.shape}")
     mac_mod_add_key = gen_long_one_time_key(auth.shape, mac_one_time_key)
-    print(f"Shape of mac_mod_add_key = {mac_mod_add_key.shape}")
     auth = auth ^ mac_mod_add_key
 
     # 4. Prepare MAC+feature array for embedding
     auth = auth.tobytes()
-    print(f"len of auth bytearray {len(auth)}")
     auth_bit_array = bytearray_to_bit_array(auth)
     auth_bit_matrix = reshape_bit_array_to_3d(auth_bit_array, AUTH_HEIGHT)
     auth_pixel_matrix = bit_array_to_pixel_array(auth_bit_matrix)
     auth_pixel_matrix = duplicate_pixel_array(auth_pixel_matrix, EXPANSION)
-    print(f"Dimension of auth {auth_pixel_matrix.shape}")
     
    
 
@@ -233,7 +223,6 @@ def send(pt, key, mac_key, feature, q, output_filename):
     randomness_bit_matrix = reshape_bit_array_to_3d(randomness_bit_array, RD_HEIGHT)
     randomness_pixel_matrix = bit_array_to_pixel_array(randomness_bit_matrix)
     randomness_pixel_matrix = duplicate_pixel_array(randomness_pixel_matrix, EXPANSION)
-    print(f"Dimension of randomness {randomness_pixel_matrix.shape}")
 
     # 6. Append MAC+feature and randomness to the ciphertext image (reverse of separate_img in recv)
     ctxt_append = append_img(ctxt, auth_pixel_matrix, randomness_pixel_matrix)
@@ -288,7 +277,6 @@ def recv(password, filt):
     r = flatten_bit_array(randomness_bit_matrix, RD_SIZE)
     r = bit_array_to_bytearray(r)
     randomness_im = r
-    print("Extracted randomness for image: ", randomness_im)
     randomness_mac = b''.join([int.to_bytes(255 ^ x, length=1, byteorder="big", signed=False) for x in r])
 
     key, mac_key = gen_keys(password)
@@ -326,7 +314,7 @@ def recv(password, filt):
     received_features = cp.copy(received_features)
     received_features = torch.from_numpy(received_features)
     sim = cos_sim(local_feature, received_features)
-    print(ret, sim)
+    print(f"Image authenticated? {ret}. Similarity {sim}")
     # ret = ret and sim > 0.9
     return ret, cleaned_pt
 

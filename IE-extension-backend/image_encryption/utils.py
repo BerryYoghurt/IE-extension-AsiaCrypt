@@ -232,13 +232,6 @@ def djpeg_read_result():
             lst+=list((range(i*16,i*16+8)))
         sml_col = cp.deepcopy(lst)
 
-    # small image
-    smallpt = np.zeros((int(v/2),int(w/2),3))
-    smallpt[:,:,0] = pt[0::2,0::2,0]
-    smallpt[:,:,1] = pt[:,:hw,1][sml_col,:]
-    smallpt[:,:,2] = pt[:,:hw,2][sml_col,:]
-    smallim = Image.fromarray(smallpt.astype('uint8'),mode='YCbCr').convert('RGB')
-
     # enlarge cb cr by 2x2
     cb = np.repeat(np.repeat(pt[:,:hw,1][sml_col,:],repeats=2,axis=1),repeats=2,axis=0)
     cr = np.repeat(np.repeat(pt[:,:hw,2][sml_col,:],repeats=2,axis=1),repeats=2,axis=0)
@@ -264,22 +257,14 @@ def read_result(filename='ctxt.jpeg'):
     y = read_spatial(f'Y_{filename}', dither_mode=0).spatial
     cb = read_spatial(f'Cb_{filename}', dither_mode=0).spatial
     cr = read_spatial(f'Cr_{filename}', dither_mode=0).spatial
-    print(f"Y channel shape: {y.shape}")
-    print(f"Cb channel shape: {cb.shape}")
-    print(f"Cr channel shape: {cr.shape}")
     if y.shape[0] > cb.shape[0]:
         # If subsampling happened
         # Take only 1/4 of the luminance
         y = y[::2,::2]
-        print(f"Subsampled Y channel shape: {y.shape}")
         y = np.repeat(np.repeat(y, repeats=2, axis=1), repeats=2, axis=0)
         cb = np.repeat(np.repeat(cb, repeats=2, axis=1), repeats=2, axis=0)
         cr = np.repeat(np.repeat(cr, repeats=2, axis=1), repeats=2, axis=0)
     # Otherwise keep things as they are
-
-    print(f"Y channel shape: {y.shape}")
-    print(f"Cb channel shape: {cb.shape}")
-    print(f"Cr channel shape: {cr.shape}")
     pt = np.stack((y, cb, cr), axis=-1)
 
     # enlarge cb cr by 2x2
