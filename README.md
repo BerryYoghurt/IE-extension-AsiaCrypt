@@ -20,8 +20,13 @@ To encrypt an image, navigate to the parent directory of `image_encryption` pack
 To set up the decryption environment:
 1. Get the server running by navigating to `IE-extension-backend` and running  `python3 encryption_server.py`. The server needs to be up and running for the decryption to work.
 2. Then, import the extension (IE-encryption-frontend) to Chrome. For more instructions on how to import an extension, see https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked.
-The extension should appear in your list of extensions, e.g. <img width="397" height="413" alt="image" src="https://github.com/user-attachments/assets/9df9bc9d-57bd-4aea-9407-5260a9f3736d" />.
-Then, when you right-click on an image, a context menu item with the extension icon should appear, e.g. <img width="293" height="350" alt="dialogue - Copy" src="https://github.com/user-attachments/assets/dc15bab3-bdac-4e09-be2e-8dc7329331f2" />.
+The extension should appear in your list of extensions, e.g.
+
+<img width="397" height="413" alt="image" src="https://github.com/user-attachments/assets/9df9bc9d-57bd-4aea-9407-5260a9f3736d" />.
+
+Then, when you right-click on an image, a context menu item with the extension icon should appear, e.g.
+
+<img width="293" height="350" alt="dialogue - Copy" src="https://github.com/user-attachments/assets/dc15bab3-bdac-4e09-be2e-8dc7329331f2" />.
 
 
 
