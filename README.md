@@ -12,7 +12,7 @@
 1. Go to IE-extension-backend/jpeg-9f.
 2. Check install.txt to see how to install it for your system. Note that we apply a small modification on the original jpeg-9f library, so we need this local compilation step.
 
-Generally, on Mac, you will need to rename some files and run `make`. On Linux, you will need to first run `./configure` and **then** run `make`.
+Generally, on Mac, you will need to rename `makefile.xc` to `makefile` and `jconfig.xc` to `jconfig`, and then run `make`. On Linux, you will need to run `./configure` and then run `make`, **without any renaming**.
 
 ## Usage
 To encrypt an image, navigate to the parent directory of `image_encryption` package, e.g. `cd IE-extension-backed` and run `python3 -m image_encryption -o <output_filename> -p <password> <input_filename>`.
