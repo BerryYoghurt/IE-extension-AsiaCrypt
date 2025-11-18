@@ -35,7 +35,7 @@ Then, when you right-click on an image, a context menu item with the extension i
 
 <kbd><img width="293" height="350" alt="dialogue - Copy" src="https://github.com/user-attachments/assets/dc15bab3-bdac-4e09-be2e-8dc7329331f2" /></kbd>.
 
-To use the decryption environment, upload an encrypted image to a website. Then, open the image (so that it has the same original size), right click on it, then choose "Decrypt this image". The page might need to be refreshed if this is the first time the extension is used after being loaded to the browser.
+3. To use the decryption environment, upload an encrypted image to a website. Then, open the image (so that it has the same original size), right click on it, then choose "Decrypt this image". The page might need to be refreshed if this is the first time the extension is used after being loaded to the browser.
 
 ## Sample run
 1. Encrypting the image:
