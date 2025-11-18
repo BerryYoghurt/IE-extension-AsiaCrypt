@@ -1,4 +1,8 @@
 # IE-extension
+### Contents
+1. [Requirements](#requirements)
+2. [Usage](#usage)
+3. [Sample run](#sample-run)
 
 ## Requirements
 - Python 3.10 or higher https://www.python.org/downloads/
@@ -6,7 +10,7 @@
 
 ### `pip` requirements
 1. Run `pip install -r ./IE-extension-backend/requirements.txt`
-2. Our protocol uses a computer-vision model, CLIP, which needs to be installed depeding on the OS you are running on. You will need to install `pytorch` and CLIP. For `pytorch' see https://pytorch.org/get-started/locally/, and for CLIP see https://github.com/openai/CLIP?tab=readme-ov-file#usage.
+2. Our protocol uses a computer-vision model, CLIP, which needs to be installed depeding on the OS you are running on. You will need to install `pytorch` and CLIP. For `pytorch` see https://pytorch.org/get-started/locally/, and for CLIP see https://github.com/openai/CLIP?tab=readme-ov-file#usage.
 
 ### If you are on a UNIX-like system, you will get a slightly higher quality if you do the following:
 1. Go to IE-extension-backend/jpeg-9f.
