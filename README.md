@@ -30,7 +30,7 @@ Then, when you right-click on an image, a context menu item with the extension i
 
 
 
-To use the decryption environment, upload an encrypted image to a website. Then, open the image (so that it has the same original size), right click on it, then choose "Decrypt this image".
+To use the decryption environment, upload an encrypted image to a website. Then, open the image (so that it has the same original size), right click on it, then choose "Decrypt this image". The page might need to be refreshed if this is the first time the extension is used after being loaded to the browser.
 
 ## Sample run
 1. Encrypting the image:
