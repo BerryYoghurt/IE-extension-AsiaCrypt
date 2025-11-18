@@ -6,11 +6,23 @@
 
 ## Requirements
 - Python 3.10 or higher https://www.python.org/downloads/
-- Pip https://pip.pypa.io/en/stable/installation/
+- Pip is automatically packaged with Python downloaded in the previous step, but in case your Python installation doesn't have it, please follw the instructions in the Pip website https://pip.pypa.io/en/stable/installation/
 
 ### `pip` requirements
-1. Run `pip install -r ./IE-extension-backend/requirements.txt`
-2. Our protocol uses a computer-vision model, CLIP, which needs to be installed depeding on the OS you are running on. You will need to install `pytorch` and CLIP. For `pytorch` see https://pytorch.org/get-started/locally/, and for CLIP see https://github.com/openai/CLIP?tab=readme-ov-file#usage.
+Run `pip install -r ./IE-extension-backend/requirements.txt`
+
+For completeness, the requirements are:
+```
+cryptography==44.0.0
+numpy==2.2.1
+scipy==1.15.1
+pillow==11.1.0
+jpeglib==1.0.1
+requests-toolbelt==1.0.0
+setuptools==80.9.0
+open-clip-torch==3.2.0
+```
+
 
 ### If you are on a UNIX-like system, you will get a slightly higher quality if you do the following:
 1. Go to IE-extension-backend/jpeg-9f.
